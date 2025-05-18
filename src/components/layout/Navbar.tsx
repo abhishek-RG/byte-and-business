@@ -3,15 +3,19 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/contexts/UserContext";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Loader2 } from "lucide-react";
 
 const Navbar: React.FC = () => {
-  const { user, logout } = useUser();
+  const { user, profile, logout, isLoading } = useUser();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
+  };
+
+  const handleLoginClick = () => {
+    navigate("/login");
   };
 
   return (
@@ -23,12 +27,17 @@ const Navbar: React.FC = () => {
       </div>
 
       <div className="flex items-center space-x-4">
-        {user ? (
+        {isLoading ? (
+          <div className="flex items-center">
+            <Loader2 size={16} className="text-relief-darkCharcoal animate-spin mr-2" />
+            <span className="text-sm">Loading...</span>
+          </div>
+        ) : user ? (
           <>
             <div className="hidden md:flex items-center space-x-2">
               <User size={18} className="text-relief-darkCharcoal" />
               <span className="text-sm font-medium text-relief-darkCharcoal">
-                {user.name} ({user.role})
+                {profile?.name || user.email} ({profile?.role})
               </span>
             </div>
             <Button 
@@ -42,11 +51,9 @@ const Navbar: React.FC = () => {
             </Button>
           </>
         ) : (
-          <Link to="/login">
-            <Button variant="outline" size="sm">
-              Login
-            </Button>
-          </Link>
+          <Button variant="outline" size="sm" onClick={handleLoginClick}>
+            Login
+          </Button>
         )}
       </div>
     </nav>

@@ -9,25 +9,61 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser, UserRole } from "@/contexts/UserContext";
 import { toast } from "sonner";
 import Navbar from "@/components/layout/Navbar";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+// Define validation schema for auth forms
+const authSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+});
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isLoading } = useUser();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("donor");
+  const { login, signup, isLoading, user } = useUser();
+  const [selectedRole, setSelectedRole] = useState<UserRole>("beneficiary");
+  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password) {
-      toast.error("Please enter both email and password");
-      return;
+  // Redirect if already logged in
+  if (user) {
+    switch(selectedRole) {
+      case "donor":
+        navigate("/donor");
+        break;
+      case "ngo":
+        navigate("/ngo");
+        break;
+      case "beneficiary":
+        navigate("/beneficiary");
+        break;
     }
-    
+  }
+
+  // Login form
+  const loginForm = useForm({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: "",
+      password: ""
+    }
+  });
+
+  // Signup form
+  const signupForm = useForm({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: "",
+      password: ""
+    }
+  });
+
+  const handleLogin = async (values: z.infer<typeof authSchema>) => {
     try {
-      await login(email, password, selectedRole);
-      toast.success(`Logged in successfully as ${selectedRole}`);
+      await login(values.email, values.password, selectedRole);
       
       // Redirect based on role
       switch(selectedRole) {
@@ -45,7 +81,18 @@ const Login = () => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Login failed. Please check your credentials.");
+      // Error is already handled in UserContext
+    }
+  };
+
+  const handleSignup = async (values: z.infer<typeof authSchema>) => {
+    try {
+      await signup(values.email, values.password, selectedRole);
+      setIsSignUp(false); // Switch back to login view after successful signup
+      toast.info("Please check your email to verify your account before logging in");
+    } catch (error) {
+      console.error("Signup error:", error);
+      // Error is already handled in UserContext
     }
   };
 
@@ -59,8 +106,6 @@ const Login = () => {
       const mockEmail = `${role}-${Math.random().toString(36).substring(2, 8)}@example.com`;
       await login(mockEmail, "web3auth-password", role);
       
-      toast.success(`Logged in successfully as ${role}`);
-      
       // Redirect based on role
       if (role === "donor") {
         navigate("/donor");
@@ -73,6 +118,12 @@ const Login = () => {
     }
   };
 
+  const toggleAuthMode = () => {
+    setIsSignUp(!isSignUp);
+    loginForm.reset();
+    signupForm.reset();
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-relief-offWhite">
       <Navbar />
@@ -80,14 +131,16 @@ const Login = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md mx-auto animate-scale-in">
           <CardHeader>
-            <CardTitle className="text-relief-darkCharcoal text-center text-2xl">Welcome to ReliefChain</CardTitle>
+            <CardTitle className="text-relief-darkCharcoal text-center text-2xl">
+              {isSignUp ? "Create Account" : "Welcome to ReliefChain"}
+            </CardTitle>
             <CardDescription className="text-center">
-              Login to access your dashboard
+              {isSignUp ? "Sign up to join ReliefChain" : "Login to access your dashboard"}
             </CardDescription>
           </CardHeader>
           
           <CardContent>
-            <Tabs defaultValue="donor" onValueChange={(value) => setSelectedRole(value as UserRole)}>
+            <Tabs defaultValue="beneficiary" onValueChange={(value) => setSelectedRole(value as UserRole)}>
               <TabsList className="grid grid-cols-3 mb-6">
                 <TabsTrigger value="donor">Donor</TabsTrigger>
                 <TabsTrigger value="ngo">NGO</TabsTrigger>
@@ -104,6 +157,7 @@ const Login = () => {
                     onClick={() => handleWeb3Auth("donor")}
                     disabled={isLoading}
                   >
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     {isLoading ? "Connecting..." : "Continue with Web3Auth"}
                   </Button>
                 </div>
@@ -119,45 +173,118 @@ const Login = () => {
                     onClick={() => handleWeb3Auth("ngo")}
                     disabled={isLoading}
                   >
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     {isLoading ? "Connecting..." : "Continue with Web3Auth"}
                   </Button>
                 </div>
               </TabsContent>
               
               <TabsContent value="beneficiary">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Signing In..." : "Sign In"}
-                  </Button>
-                </form>
+                {isSignUp ? (
+                  <Form {...signupForm}>
+                    <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-4">
+                      <FormField
+                        control={signupForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter your email" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={signupForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Create a password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isLoading ? "Creating Account..." : "Create Account"}
+                      </Button>
+
+                      <div className="text-center mt-4">
+                        <Button
+                          variant="link"
+                          type="button"
+                          onClick={toggleAuthMode}
+                          className="text-sm text-blue-600"
+                        >
+                          Already have an account? Sign In
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                ) : (
+                  <Form {...loginForm}>
+                    <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+                      <FormField
+                        control={loginForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter your email" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={loginForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Enter your password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isLoading ? "Signing In..." : "Sign In"}
+                      </Button>
+
+                      <div className="text-center mt-4">
+                        <Button
+                          variant="link"
+                          type="button"
+                          onClick={toggleAuthMode}
+                          className="text-sm text-blue-600"
+                        >
+                          Don't have an account? Sign Up
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
