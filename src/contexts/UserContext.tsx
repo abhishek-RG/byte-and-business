@@ -68,6 +68,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
@@ -87,6 +88,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Check for existing session
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      console.log("Existing session check:", currentSession?.user?.id);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
 
@@ -107,6 +109,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const signup = async (email: string, password: string, role: UserRole) => {
     setIsLoading(true);
     try {
+      console.log(`Signing up with email: ${email}, role: ${role}`);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -117,10 +120,17 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Signup error:", error);
+        toast.error(error.message || "Failed to sign up");
+        throw error;
+      }
 
+      console.log("Signup success:", data);
       toast.success("Signup successful! Please check your email for verification.");
+      
     } catch (error: any) {
+      console.error("Signup catch error:", error);
       toast.error(error.message || "Failed to sign up");
       throw error;
     } finally {
@@ -132,24 +142,40 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string, role: UserRole) => {
     setIsLoading(true);
     try {
+      console.log(`Logging in with email: ${email}, role: ${role}`);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Login error:", error);
+        toast.error(error.message || "Failed to sign in");
+        throw error;
+      }
       
       // Check if user has correct role
-      const profile = await fetchProfile(data.user.id);
+      const userProfile = await fetchProfile(data.user.id);
       
-      if (!profile || profile.role !== role) {
+      if (!userProfile) {
+        console.error("No profile found for user");
+        toast.error("No profile found for this user");
+        await supabase.auth.signOut();
+        throw new Error("No profile found for this user");
+      }
+      
+      if (userProfile.role !== role) {
+        console.error(`Profile role mismatch: expected ${role}, got ${userProfile.role}`);
         await supabase.auth.signOut();
         toast.error(`This account is not registered as a ${role}`);
         throw new Error(`This account is not registered as a ${role}`);
       }
 
+      setProfile(userProfile);
       toast.success(`Logged in successfully as ${role}`);
+      
     } catch (error: any) {
+      console.error("Login catch error:", error);
       toast.error(error.message || "Failed to sign in");
       throw error;
     } finally {
