@@ -17,7 +17,7 @@ interface IncidentFormProps {
 }
 
 const IncidentForm = ({ onSuccess }: IncidentFormProps) => {
-  const { user } = useUser();
+  const { user, profile } = useUser();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -82,10 +82,10 @@ const IncidentForm = ({ onSuccess }: IncidentFormProps) => {
         return;
       }
       
-      // Prepare incident data
+      // Prepare incident data using profile.name instead of user.name
       const newIncident: Omit<Incident, 'id'> = {
         beneficiaryId: user.id,
-        beneficiaryName: user.name,
+        beneficiaryName: profile?.name || "Anonymous",
         location: formData.location,
         timestamp: new Date().toISOString(),
         cause: formData.cause,
