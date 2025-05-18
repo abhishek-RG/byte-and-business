@@ -48,21 +48,23 @@ const Login = () => {
   }, [user, profile, navigate]);
 
   // Login form
-  const loginForm = useForm({
+  const loginForm = useForm<z.infer<typeof authSchema>>({
     resolver: zodResolver(authSchema),
     defaultValues: {
       email: "",
       password: ""
-    }
+    },
+    mode: "onChange" // Add immediate validation
   });
 
   // Signup form
-  const signupForm = useForm({
+  const signupForm = useForm<z.infer<typeof authSchema>>({
     resolver: zodResolver(authSchema),
     defaultValues: {
       email: "",
       password: ""
-    }
+    },
+    mode: "onChange" // Add immediate validation
   });
 
   const handleLogin = async (values: z.infer<typeof authSchema>) => {
@@ -160,7 +162,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter your email" {...field} />
+                              <Input 
+                                type="email" 
+                                placeholder="Enter your email" 
+                                autoComplete="email"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -174,7 +181,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Create a password" {...field} />
+                              <Input 
+                                type="password" 
+                                placeholder="Create a password" 
+                                autoComplete="new-password"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -212,7 +224,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter your email" {...field} />
+                              <Input 
+                                type="email" 
+                                placeholder="Enter your email" 
+                                autoComplete="email"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -226,7 +243,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Enter your password" {...field} />
+                              <Input 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                autoComplete="current-password"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -268,7 +290,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter your email" {...field} />
+                              <Input 
+                                type="email" 
+                                placeholder="Enter your email" 
+                                autoComplete="email"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -282,7 +309,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Create a password" {...field} />
+                              <Input 
+                                type="password" 
+                                placeholder="Create a password" 
+                                autoComplete="new-password"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -320,7 +352,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Enter your email" {...field} />
+                              <Input 
+                                type="email" 
+                                placeholder="Enter your email" 
+                                autoComplete="email"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -334,7 +371,12 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Enter your password" {...field} />
+                              <Input 
+                                type="password" 
+                                placeholder="Enter your password" 
+                                autoComplete="current-password"
+                                {...field} 
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

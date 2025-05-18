@@ -65,6 +65,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Initialize auth state
   useEffect(() => {
+    console.log("Setting up auth state listener...");
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
@@ -126,8 +128,14 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw error;
       }
 
-      console.log("Signup success:", data);
-      toast.success("Signup successful! Please check your email for verification.");
+      // Check if user was created successfully
+      if (data?.user) {
+        console.log("Signup success:", data);
+        toast.success("Account created successfully! Please check your email for verification.");
+      } else {
+        console.error("No user data returned from signup");
+        toast.error("An unexpected error occurred during signup");
+      }
       
     } catch (error: any) {
       console.error("Signup catch error:", error);
