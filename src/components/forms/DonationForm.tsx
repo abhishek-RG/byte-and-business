@@ -17,7 +17,7 @@ interface DonationFormProps {
 }
 
 const DonationForm = ({ incident, isOpen, onClose, onSuccess }: DonationFormProps) => {
-  const { user, profile } = useUser();
+  const { user } = useUser();
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -49,8 +49,8 @@ const DonationForm = ({ incident, isOpen, onClose, onSuccess }: DonationFormProp
       // Simulate blockchain transaction
       toast.info("Executing blockchain transaction...");
       
-      // Make the donation using the proper name from profile
-      await makeDonation(user.id, profile?.name || "Anonymous", incident.id, donationAmount);
+      // Make the donation
+      await makeDonation(user.id, user.name, incident.id, donationAmount);
       
       toast.success("Donation successful! Thank you for your support.");
       

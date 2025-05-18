@@ -1,100 +1,202 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Link } from 'react-router-dom';
-import { PlusCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUser } from "@/contexts/UserContext";
+import { Incident, Donation, fetchIncidents, fetchDonationsByDonor } from "@/services/mockDataService";
+import Navbar from "@/components/layout/Navbar";
+import IncidentCard from "@/components/cards/IncidentCard";
+import DonationCard from "@/components/cards/DonationCard";
+import DonationForm from "@/components/forms/DonationForm";
+import { Loader2 } from "lucide-react";
 
 const DonorDashboard = () => {
-  const [incidents, setIncidents] = useState([]);
-
-  const { data: incidentsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['incidents'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('incidents')
-        .select('*');
-
-      if (error) {
-        console.error("Error fetching incidents:", error);
-        throw new Error(error.message);
-      }
-      return data;
-    },
-  });
-
+  const navigate = useNavigate();
+  const { user } = useUser();
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
-    if (incidentsData) {
-      setIncidents(incidentsData);
-    }
-  }, [incidentsData]);
-
-  if (isLoading) return <div>Loading incidents...</div>;
-  if (isError) return <div>Error fetching incidents. Please try again.</div>;
-
-  // Fix the problematic button click handler that was causing the error
-  const handleDonate = (incident: any) => {
-    // Simulate opening Transak widget and handling donation
-    toast.success(`Processing donation for ${incident.title}`);
-    
-    // Instead of using .click() on the element, we'll use a different approach
-    // Either manipulate the DOM directly if needed:
-    const donateButton = document.getElementById(`donate-button-${incident.id}`);
-    if (donateButton instanceof HTMLElement) {
-      donateButton.dispatchEvent(new MouseEvent('click', {
-        bubbles: true,
-        cancelable: true,
-        view: window
-      }));
+    if (!user || user.role !== "donor") {
+      navigate("/login");
+      return;
     }
     
-    // Or just handle the logic directly:
-    setTimeout(() => {
-      toast.success(`Donation of $${Math.floor(Math.random() * 100) + 50} processed!`);
-      toast.info(`Transaction hash: 0x${Math.random().toString(36).substring(2, 15)}`);
-    }, 2000);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [incidentsData, donationsData] = await Promise.all([
+          fetchIncidents(),
+          fetchDonationsByDonor(user.id)
+        ]);
+        
+        // Filter only verified incidents for donors
+        setIncidents(incidentsData.filter(incident => incident.status === 'verified'));
+        setDonations(donationsData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [user, navigate]);
+
+  const handleDonate = (incident: Incident) => {
+    setSelectedIncident(incident);
+    setIsDonationModalOpen(true);
+  };
+
+  const refreshData = async () => {
+    try {
+      const [incidentsData, donationsData] = await Promise.all([
+        fetchIncidents(),
+        fetchDonationsByDonor(user?.id || "")
+      ]);
+      
+      setIncidents(incidentsData.filter(incident => incident.status === 'verified'));
+      setDonations(donationsData);
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    }
+  };
+
+  const formatTotalDonations = () => {
+    const total = donations.reduce((sum, donation) => sum + donation.amount, 0);
+    return total.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    });
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6">
-      <div className="container mx-auto px-4">
-        <div className="md:flex md:items-center md:justify-between">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-              Donor Dashboard
-            </h2>
+    <div className="min-h-screen flex flex-col bg-relief-offWhite">
+      <Navbar />
+      
+      <div className="container mx-auto px-4 py-6 flex-1">
+        <div className="max-w-6xl mx-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-relief-darkCharcoal mb-6 animate-fade-in">
+            Donor Dashboard
+          </h1>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-fade-in">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">Total Donations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{formatTotalDonations()}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">Relief Projects Supported</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{donations.length}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">Wallet Address</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm font-mono truncate">{user?.walletAddress || "Not connected"}</p>
+              </CardContent>
+            </Card>
           </div>
-          <div className="mt-4 flex md:mt-0 md:ml-4">
-            <Link to="/incidents/create">
-              <Button className="ml-3">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Report Incident
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-8">
-          {incidents.map((incident: any) => (
-            <li key={incident.id} className="bg-white shadow-md rounded-lg overflow-hidden">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{incident.title}</CardTitle>
-                  <CardDescription>{incident.location}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p>{incident.description}</p>
-                  <Button onClick={() => handleDonate(incident)}>
-                    Donate
+          
+          <Tabs defaultValue="cases" className="animate-scale-in">
+            <TabsList className="mb-6">
+              <TabsTrigger value="cases">Verified Relief Cases</TabsTrigger>
+              <TabsTrigger value="donations">My Donations</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="cases">
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-relief-darkGreen" />
+                </div>
+              ) : incidents.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {incidents.map((incident) => (
+                    <IncidentCard
+                      key={incident.id}
+                      incident={incident}
+                      actionButton={{
+                        label: "Donate",
+                        onClick: handleDonate,
+                        variant: "default"
+                      }}
+                      className="animate-fade-in"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No verified relief cases available currently.</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={refreshData}
+                  >
+                    Refresh
                   </Button>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="donations">
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-relief-darkGreen" />
+                </div>
+              ) : donations.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {donations.map((donation) => (
+                    <DonationCard
+                      key={donation.id}
+                      donation={donation}
+                      className="animate-fade-in"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">You haven't made any donations yet.</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => document.querySelector('[data-value="cases"]')?.click()}
+                  >
+                    Explore Relief Cases
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
+      
+      {selectedIncident && (
+        <DonationForm
+          incident={selectedIncident}
+          isOpen={isDonationModalOpen}
+          onClose={() => {
+            setIsDonationModalOpen(false);
+            setSelectedIncident(null);
+          }}
+          onSuccess={refreshData}
+        />
+      )}
     </div>
   );
 };

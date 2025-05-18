@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { CheckCheck, Loader2 } from "lucide-react";
 
 const NGODashboard = () => {
   const navigate = useNavigate();
-  const { user, profile } = useUser();
+  const { user } = useUser();
   const [pendingIncidents, setPendingIncidents] = useState<Incident[]>([]);
   const [verifiedIncidents, setVerifiedIncidents] = useState<Incident[]>([]);
   const [fundedIncidents, setFundedIncidents] = useState<Incident[]>([]);
@@ -62,13 +63,13 @@ const NGODashboard = () => {
   };
 
   const confirmAction = async () => {
-    if (!selectedIncident || !user || !actionType || !profile) return;
+    if (!selectedIncident || !user || !actionType) return;
     
     try {
       setIsProcessing(true);
       
       if (actionType === "approve") {
-        await approveIncident(selectedIncident.id, user.id, profile.name || "Anonymous NGO");
+        await approveIncident(selectedIncident.id, user.id, user.name);
         toast.success("Incident verified successfully!");
       } else {
         await releaseFunds(selectedIncident.id);
