@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,14 +24,49 @@ const authSchema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, signup, isLoading, user, profile } = useUser();
+  const { login, signup, isLoading, user } = useUser();
   const [selectedRole, setSelectedRole] = useState<UserRole>("beneficiary");
   const [isSignUp, setIsSignUp] = useState(false);
 
   // Redirect if already logged in
-  useEffect(() => {
-    if (user && profile) {
-      switch(profile.role) {
+  if (user) {
+    switch(selectedRole) {
+      case "donor":
+        navigate("/donor");
+        break;
+      case "ngo":
+        navigate("/ngo");
+        break;
+      case "beneficiary":
+        navigate("/beneficiary");
+        break;
+    }
+  }
+
+  // Login form
+  const loginForm = useForm({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: "",
+      password: ""
+    }
+  });
+
+  // Signup form
+  const signupForm = useForm({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: "",
+      password: ""
+    }
+  });
+
+  const handleLogin = async (values: z.infer<typeof authSchema>) => {
+    try {
+      await login(values.email, values.password, selectedRole);
+      
+      // Redirect based on role
+      switch(selectedRole) {
         case "donor":
           navigate("/donor");
           break;
@@ -44,35 +79,7 @@ const Login = () => {
         default:
           navigate("/");
       }
-    }
-  }, [user, profile, navigate]);
-
-  // Login form
-  const loginForm = useForm<z.infer<typeof authSchema>>({
-    resolver: zodResolver(authSchema),
-    defaultValues: {
-      email: "",
-      password: ""
-    },
-    mode: "onChange" // Add immediate validation
-  });
-
-  // Signup form
-  const signupForm = useForm<z.infer<typeof authSchema>>({
-    resolver: zodResolver(authSchema),
-    defaultValues: {
-      email: "",
-      password: ""
-    },
-    mode: "onChange" // Add immediate validation
-  });
-
-  const handleLogin = async (values: z.infer<typeof authSchema>) => {
-    try {
-      await login(values.email, values.password, selectedRole);
-      console.log("Login successful");
-      // Redirection will be handled by the useEffect hook
-    } catch (error: any) {
+    } catch (error) {
       console.error("Login error:", error);
       // Error is already handled in UserContext
     }
@@ -82,8 +89,8 @@ const Login = () => {
     try {
       await signup(values.email, values.password, selectedRole);
       setIsSignUp(false); // Switch back to login view after successful signup
-      toast.success("Account created successfully! Please check your email to verify your account before logging in.");
-    } catch (error: any) {
+      toast.info("Please check your email to verify your account before logging in");
+    } catch (error) {
       console.error("Signup error:", error);
       // Error is already handled in UserContext
     }
@@ -99,7 +106,12 @@ const Login = () => {
       const mockEmail = `${role}-${Math.random().toString(36).substring(2, 8)}@example.com`;
       await login(mockEmail, "web3auth-password", role);
       
-      // Redirect will be handled by useEffect
+      // Redirect based on role
+      if (role === "donor") {
+        navigate("/donor");
+      } else if (role === "ngo") {
+        navigate("/ngo");
+      }
     } catch (error) {
       console.error("Web3Auth error:", error);
       toast.error("Web3Auth login failed. Please try again.");
@@ -128,7 +140,7 @@ const Login = () => {
           </CardHeader>
           
           <CardContent>
-            <Tabs defaultValue={selectedRole} onValueChange={(value) => setSelectedRole(value as UserRole)}>
+            <Tabs defaultValue="beneficiary" onValueChange={(value) => setSelectedRole(value as UserRole)}>
               <TabsList className="grid grid-cols-3 mb-6">
                 <TabsTrigger value="donor">Donor</TabsTrigger>
                 <TabsTrigger value="ngo">NGO</TabsTrigger>
@@ -152,131 +164,19 @@ const Login = () => {
               </TabsContent>
               
               <TabsContent value="ngo">
-                {isSignUp ? (
-                  <Form {...signupForm}>
-                    <form onSubmit={signupForm.handleSubmit((values) => handleSignup(values))} className="space-y-4">
-                      <FormField
-                        control={signupForm.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="email" 
-                                placeholder="Enter your email" 
-                                autoComplete="email"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={signupForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Create a password" 
-                                autoComplete="new-password"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isLoading ? "Creating Account..." : "Create NGO Account"}
-                      </Button>
-
-                      <div className="text-center mt-4">
-                        <Button
-                          variant="link"
-                          type="button"
-                          onClick={toggleAuthMode}
-                          className="text-sm text-blue-600"
-                        >
-                          Already have an account? Sign In
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                ) : (
-                  <Form {...loginForm}>
-                    <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-                      <FormField
-                        control={loginForm.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="email" 
-                                placeholder="Enter your email" 
-                                autoComplete="email"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={loginForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                autoComplete="current-password"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <Button 
-                        type="submit" 
-                        className="w-full"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isLoading ? "Signing In..." : "Sign In as NGO"}
-                      </Button>
-
-                      <div className="text-center mt-4">
-                        <Button
-                          variant="link"
-                          type="button"
-                          onClick={toggleAuthMode}
-                          className="text-sm text-blue-600"
-                        >
-                          Don't have an account? Sign Up
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                )}
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    As an NGO partner, you can verify incidents and release funds to beneficiaries.
+                  </p>
+                  <Button 
+                    className="w-full bg-blue-500 hover:bg-blue-600"
+                    onClick={() => handleWeb3Auth("ngo")}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    {isLoading ? "Connecting..." : "Continue with Web3Auth"}
+                  </Button>
+                </div>
               </TabsContent>
               
               <TabsContent value="beneficiary">
@@ -290,12 +190,7 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="email" 
-                                placeholder="Enter your email" 
-                                autoComplete="email"
-                                {...field} 
-                              />
+                              <Input placeholder="Enter your email" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -309,12 +204,7 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Create a password" 
-                                autoComplete="new-password"
-                                {...field} 
-                              />
+                              <Input type="password" placeholder="Create a password" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -327,7 +217,7 @@ const Login = () => {
                         disabled={isLoading}
                       >
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isLoading ? "Creating Account..." : "Create Beneficiary Account"}
+                        {isLoading ? "Creating Account..." : "Create Account"}
                       </Button>
 
                       <div className="text-center mt-4">
@@ -352,12 +242,7 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="email" 
-                                placeholder="Enter your email" 
-                                autoComplete="email"
-                                {...field} 
-                              />
+                              <Input placeholder="Enter your email" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -371,12 +256,7 @@ const Login = () => {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Enter your password" 
-                                autoComplete="current-password"
-                                {...field} 
-                              />
+                              <Input type="password" placeholder="Enter your password" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -389,7 +269,7 @@ const Login = () => {
                         disabled={isLoading}
                       >
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isLoading ? "Signing In..." : "Sign In as Beneficiary"}
+                        {isLoading ? "Signing In..." : "Sign In"}
                       </Button>
 
                       <div className="text-center mt-4">
